@@ -19,7 +19,7 @@ jobs:
     - name: Checkout
       uses: actions/checkout@v2
 
-    - name: Install GLM, OpenMP Boost 
+    - name: Install GLM, OpenMP and Boost 
       run: | 
         apt update && 
         apt install -y software-properties-common
@@ -46,7 +46,7 @@ jobs:
         ../cmake/bin/cmake -DTrimesh2_INCLUDE_DIR="../../trimesh2/include" -DTrimesh2_LINK_DIR="../../trimesh2/lib.Linux64" -DCUDA_ARCH=${CUDA_ARCH} ..
         ../cmake/bin/cmake --build . -j $(nproc)
     - name: Test
-      run: ./build/cuda_voxelizer -f ./test_models/bunny.OBJ -s 64 -cpu
+      run: ./build/cuda_voxelizer -i ./test_models/bunny.OBJ -s 64 -cpu
   
   windows-build:
     runs-on: windows-2019
@@ -94,4 +94,4 @@ jobs:
         & cmake -A x64 -DBoost_DIR="$BOOST_ROOT_1_72_0\lib\cmake\Boost-1.72.0" -DCMAKE_TOOLCHAIN_FILE:FILEPATH="C:\vcpkg\scripts\buildsystems\vcpkg.cmake" -DTrimesh2_INCLUDE_DIR:PATH="$trimeshDir\include" -DTrimesh2_LINK_DIR:PATH="$trimeshDir\lib.Win64.vs142" -DCUDA_ARCH:STRING=$env:CUDA_ARCH -DCMAKE_BUILD_TYPE=Release -S . -B .\build
         & cmake --build .\build -j 2 --target ALL_BUILD --config Release
     - name: Test cuda_voxelizer
-      run: .\build\Release\cuda_voxelizer.exe -f .\test_models\bunny.OBJ -s 64 -cpu
+      run: .\build\Release\cuda_voxelizer.exe -i .\test_models\bunny.OBJ -s 64 -cpu
