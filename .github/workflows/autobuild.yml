@@ -9,6 +9,7 @@ on:
         default: '10.2'
 env: 
   CUDA_ARCH: 30
+  TRIMESH_VERS: 2020.03.04
 jobs:
   linux-build:
     runs-on: ubuntu-18.04
@@ -17,21 +18,23 @@ jobs:
     steps:
     - name: Checkout
       uses: actions/checkout@v2
-      with:
-        ref: universal-cmake  
 
-    - name: Install GLM and OpenMP
-      run: apt update && apt install -y libglm-dev libgomp1
+    - name: Install GLM, OpenMP Boost 
+      run: | 
+        apt update && 
+        apt install -y software-properties-common
+        add-apt-repository ppa:mhier/libboost-latest &&
+        apt update &&
+        apt install -y libglm-dev libgomp1 libboost1.70-dev
     - name: Build Trimesh2
       run: |
-        apt update
         apt install -y git mesa-common-dev libglu1-mesa-dev libxi-dev 
-        git clone -b 2020.03.04 https://github.com/Forceflow/trimesh2.git ../trimesh2
-        cd ../trimesh2 && make all -j 2 && cd -
+        git clone -b ${TRIMESH_VERS} https://github.com/Forceflow/trimesh2.git ../trimesh2
+        cd ../trimesh2 && make all -j $(nproc) && cd -
     - name: Install CMake
       run: |
         apt install -y wget
-        wget https://github.com/Kitware/CMake/releases/download/v3.13.0/cmake-3.13.0-Linux-x86_64.sh -q -O ./cmake-install.sh 
+        wget https://github.com/Kitware/CMake/releases/download/v3.17.0/cmake-3.17.0-Linux-x86_64.sh -q -O ./cmake-install.sh 
         chmod u+x ./cmake-install.sh
         mkdir ./cmake
         ./cmake-install.sh --skip-license --prefix=./cmake
@@ -41,7 +44,7 @@ jobs:
         mkdir ./build
         cd ./build
         ../cmake/bin/cmake -DTrimesh2_INCLUDE_DIR="../../trimesh2/include" -DTrimesh2_LINK_DIR="../../trimesh2/lib.Linux64" -DCUDA_ARCH=${CUDA_ARCH} ..
-        ../cmake/bin/cmake --build . -j 2
+        ../cmake/bin/cmake --build . -j $(nproc)
     - name: Test
       run: ./build/cuda_voxelizer -f ./test_models/bunny.OBJ -s 64 -cpu
   
@@ -75,7 +78,7 @@ jobs:
     - name: Build Trimesh2
       if: steps.trimesh2-cache.outputs.cache-hit != 'true'
       run: |
-        git clone -b 2020.03.04 https://github.com/Forceflow/trimesh2.git ..\trimesh2
+        git clone -b $env:TRIMESH_VERS https://github.com/Forceflow/trimesh2.git ..\trimesh2
         cd ..\trimesh2
         & 'C:\Program Files (x86)\Microsoft Visual Studio\2019\Enterprise\MSBuild\Current\Bin\msbuild.exe' .\msvc\vs2019\trimesh2.sln -nologo -m:2 /t:libsrc /p:Configuration=Release /p:Platform=x64
         mkdir ..\trimesh2-build
@@ -88,7 +91,7 @@ jobs:
       run: |
         $trimeshDir = "..\trimesh2-build"
         mkdir .\build
-        & cmake -A x64 -DCMAKE_TOOLCHAIN_FILE:FILEPATH="C:\vcpkg\scripts\buildsystems\vcpkg.cmake" -DTrimesh2_INCLUDE_DIR:PATH="$trimeshDir\include" -DTrimesh2_LINK_DIR:PATH="$trimeshDir\lib.Win64.vs142" -DCUDA_ARCH:STRING=$env:CUDA_ARCH -DCMAKE_BUILD_TYPE=Release -S . -B .\build
+        & cmake -A x64 -DBoost_DIR="$BOOST_ROOT_1_72_0\lib\cmake\Boost-1.72.0" -DCMAKE_TOOLCHAIN_FILE:FILEPATH="C:\vcpkg\scripts\buildsystems\vcpkg.cmake" -DTrimesh2_INCLUDE_DIR:PATH="$trimeshDir\include" -DTrimesh2_LINK_DIR:PATH="$trimeshDir\lib.Win64.vs142" -DCUDA_ARCH:STRING=$env:CUDA_ARCH -DCMAKE_BUILD_TYPE=Release -S . -B .\build
         & cmake --build .\build -j 2 --target ALL_BUILD --config Release
     - name: Test cuda_voxelizer
       run: .\build\Release\cuda_voxelizer.exe -f .\test_models\bunny.OBJ -s 64 -cpu
